@@ -77,19 +77,22 @@ export default function LinkImportDialog({ onClose }) {
           把网易云音乐的单曲页面链接粘贴进来，服务端会下载音频与逐句歌词，保存到 <code>song/</code> 与 <code>geci/</code>，然后自动重建页面。整个过程约 1–3 分钟。
         </p>
 
-        <label className="song-file-field">
+        <div className="link-import-field">
           <span>01 · 单曲链接</span>
-          <strong><Link2 size={14} /> 例如 https://music.163.com/#/song?id=1234567</strong>
-          <small>必须是单曲页面链接；歌单/专辑链接暂不支持</small>
           <input
+            className="link-import-input"
             type="url"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="https://music.163.com/#/song?id=…"
             disabled={busy}
+            spellCheck={false}
+            autoComplete="off"
+            inputMode="url"
             autoFocus
           />
-        </label>
+          <small>必须是单曲页面链接；歌单/专辑链接暂不支持。可直接 Ctrl/Cmd + V 粘贴。</small>
+        </div>
 
         {job && (
           <div className="link-import-progress" role="status">

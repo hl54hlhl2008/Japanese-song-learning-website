@@ -788,3 +788,35 @@ body { background:radial-gradient(circle at 8% 4%,rgba(252,217,184,.45),transpar
   line-height: 1.6;
   color: #9ca3af;
 }
+
+/* 链接输入框：不能用 .song-file-field（那个类把 input 做成透明覆盖层供文件选择用） */
+.link-import-field {
+  display: block;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px dashed #a8b9b1;
+  background: #f1f7f1;
+}
+.link-import-field > span {
+  display: block;
+  color: #d75f42;
+  font: 10px var(--mono);
+  letter-spacing: .08em;
+}
+.link-import-field .link-import-input {
+  position: static;
+  display: block;
+  width: 100%;
+  margin: 9px 0 6px;
+  padding: 10px 11px;
+  border: 1px solid #b9c9bf;
+  border-radius: 0;
+  color: var(--ink);
+  background: #fffdf7;
+  font: 14px var(--mono);
+  opacity: 1;
+  outline: none;
+}
+.link-import-field .link-import-input::placeholder { color: #9aa5a0; }
+.link-import-field .link-import-input:focus { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(226,92,56,.12); }
+.link-import-field small { display: block; color: #718078; font-size: 10px; line-height: 1.5; }
