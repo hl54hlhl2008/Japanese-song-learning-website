@@ -568,11 +568,21 @@ def find_song_artwork(title: str, artist: str = "") -> dict[str, str]:
     return {"artwork_url": artwork_url, "source_url": source_url, "provider": "Apple Music"}
 
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
 app = FastAPI(title="UTA annotation API", version="0.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"], allow_methods=["*"], allow_headers=["*"],
 )
+
+# 生产构建的前端静态文件；uvicorn 承载 /dist，API 单独监听 8000。
+DIST_DIR = Path(__file__).resolve().parent.parent / "dist"
+if DIST_DIR.is_dir():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 
 @app.get("/api/health")
@@ -820,3 +830,42 @@ def explain_selection_with_ai(payload: ExplainSelectionRequest, request: Request
         "caution": text_field(result.get("caution"), limit=240),
         "notice": "AI 讲解基于所选内容和相邻歌词，仅作学习参考。",
     }
+
+# ── 粘贴单曲链接导入（网易云）──────────────────────────────────────────────
+class ImportLinkRequest(BaseModel):
+    url: str = Field(default="", max_length=2048)
+
+
+@app.post("/api/library/import")
+def import_song_from_link(payload: ImportLinkRequest, request: Request) -> dict[str, Any]:
+    """把音乐平台单曲链接解析并落盘到 geci/ 与 song/，随后重建前端。"""
+    from library_import import is_private_client, start_import
+
+    client_host = request.client.host if request.client else ""
+    if not is_private_client(client_host):
+        raise HTTPException(403, "链接导入仅限本机 / 局域网 / Tailscale 使用。")
+    url = (payload.url or "").strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(422, "请粘贴以 http(s):// 开头的单曲链接。")
+    return {"job_id": start_import(url), "state": "queued"}
+
+
+@app.get("/api/library/import/{job_id}")
+def import_song_status(job_id: str) -> dict[str, Any]:
+    from library_import import get_job
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(404, "任务不存在或已过期。")
+    return job
+
+
+# SPA 单页路由：前端资源和 API 路由交给各自处理，其余返回 index.html。
+@app.get("/{full_path:path}")
+def serve_spa(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404)
+    candidate = DIST_DIR / full_path
+    if candidate.is_file() and candidate != DIST_DIR / "index.html":
+        return FileResponse(candidate)
+    return FileResponse(DIST_DIR / "index.html")

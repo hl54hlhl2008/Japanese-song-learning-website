@@ -5,10 +5,14 @@ import hashlib
 import ipaddress
 import json
 import os
+import uuid
 from dataclasses import dataclass, field
 from urllib import error, parse, request
 
 from fastapi import HTTPException
+
+# 进程级会话标识：供需要 x-opencode-session 之类路由头的供应商使用
+_SESSION_ID = uuid.uuid4().hex
 
 
 @dataclass(frozen=True)
@@ -74,11 +78,22 @@ def validate_provider(data: dict) -> Provider:
 
 
 def default_provider() -> Provider:
+    """服务端默认 AI 配置。
+
+    优先读取通用键 AI_*（可指向任意 OpenAI Chat Completions 兼容服务），
+    未填写时回落到 DeepSeek 官方配置，保证原有行为不变。
+    """
+    base_url = (os.getenv('AI_BASE_URL') or '').strip()
+    protocol = (os.getenv('AI_PROTOCOL') or '').strip()
+    if protocol not in {'deepseek', 'openai-compatible'}:
+        # 未显式指定时：地址为空或指向 DeepSeek 官方 → deepseek，否则按兼容接口处理
+        protocol = 'deepseek' if (not base_url or 'deepseek' in base_url.lower()) else 'openai-compatible'
     return validate_provider({
-        'name': 'DeepSeek', 'protocol': 'deepseek',
-        'base_url': 'https://api.deepseek.com',
-        'model': os.getenv('DEEPSEEK_MODEL', 'deepseek-flash').strip() or 'deepseek-flash',
-        'api_key': os.getenv('DEEPSEEK_API_KEY', '').strip(),
+        'name': (os.getenv('AI_PROVIDER_NAME') or 'DeepSeek').strip(),
+        'protocol': protocol,
+        'base_url': base_url or 'https://api.deepseek.com',
+        'model': (os.getenv('AI_MODEL') or os.getenv('DEEPSEEK_MODEL') or 'deepseek-flash').strip(),
+        'api_key': (os.getenv('AI_API_KEY') or os.getenv('DEEPSEEK_API_KEY') or '').strip(),
     })
 
 
@@ -102,6 +117,29 @@ class NoRedirect(request.HTTPRedirectHandler):
         return None
 
 
+def _extra_headers() -> dict[str, str]:
+    """读取 AI_EXTRA_HEADERS（JSON 对象），用于个别供应商要求的额外请求头。
+
+    值留空字符串时替换为进程级随机 session id，例如 OpenCode Go 需要的
+    {"x-opencode-session": ""}。
+    """
+    raw = (os.getenv('AI_EXTRA_HEADERS') or '').strip()
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, str] = {}
+    for key, value in data.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            continue
+        out[key] = value if value else _SESSION_ID
+    return out
+
+
 def request_json(provider: Provider, prompt: str, payload: dict, max_tokens: int, thinking: str = 'disabled') -> dict:
     body = {
         'model': provider.model,
@@ -118,7 +156,8 @@ def request_json(provider: Provider, prompt: str, payload: dict, max_tokens: int
     if provider.protocol == 'deepseek':
         body['thinking'] = {'type': thinking}
         body['temperature'] = 0.1
-    headers = {'Content-Type': 'application/json'}
+    headers = {'Content-Type': 'application/json', 'User-Agent': 'UTA-Lyrics/1.0 (japanese song learning)'}
+    headers.update(_extra_headers())
     if provider.api_key:
         headers['Authorization'] = 'Bearer ' + provider.api_key
     outgoing = request.Request(provider.endpoint, data=json.dumps(body, ensure_ascii=False).encode('utf-8'), headers=headers, method='POST')

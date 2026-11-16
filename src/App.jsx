@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
-import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Settings, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
+import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, Link2, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Settings, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
 import AnnotatedLine from './components/AnnotatedLine'
 import ComputerImportDialog from './components/ComputerImportDialog'
+import LinkImportDialog from './components/LinkImportDialog'
 import ArtworkPicker from './components/ArtworkPicker'
 import AndroidHome, { AndroidBottomNav } from './components/AndroidHome'
 import AndroidSongLibrary from './components/AndroidSongLibrary'
@@ -173,6 +174,7 @@ export default function App() {
   const [selectedTokenIndex, setSelectedTokenIndex] = useState(0)
   const [draftReading, setDraftReading] = useState('')
   const [draftMeaning, setDraftMeaning] = useState('')
+  const [linkImportOpen, setLinkImportOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailView, setDetailView] = useState('word')
   const [selectedText, setSelectedText] = useState(null)
@@ -1818,7 +1820,7 @@ export default function App() {
         {IS_ANDROID_APP && <AndroidSongLibrary songs={androidLibrarySongs} total={androidLibraryTotal} search={librarySearch} onSearch={setLibrarySearch} onImport={openImportDialog} artworkFor={artworkForSong} learnedBySong={learnedBySong} onOpen={chooseSongFromLibrary} onDelete={removeImportedSong} onArtwork={openArtworkEditor} onEdit={setEditingDetailsSong} deletingSongId={deletingSongId} activeSongId={activeSong.id} />}
         {/* 原网页歌曲库保留作对照；安卓使用上方独立的简洁布局。 */}
         {!IS_ANDROID_APP && <>
-        <div className="library-top"><div><p className="eyebrow">YOUR IMPORTED SONGS</p><h2 id="library-title">歌曲库</h2><p>从已导入的歌词中选一首，继续练习发音与词汇。</p></div><div className="library-top-actions"><label className="library-search"><Search size={14} /><input id="library-search" type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="搜索歌名或歌手" aria-label="搜索歌名或歌手" />{librarySearch && <button type="button" onClick={() => setLibrarySearch('')} aria-label="清除搜索"><X size={13} /></button>}</label><span className="library-count">{librarySearch ? `找到 ${visibleLibrarySongs.length} / ${allSongs.length} 首` : `已导入 ${allSongs.length} 首`}</span><button className="library-import-trigger" type="button" onClick={openImportDialog}><Upload size={14} /> 导入歌曲</button>{!IS_ANDROID_APP && <button className="library-import-trigger" type="button" onClick={shareComputerSongs}><Upload size={14} /> 共享到手机</button>}</div></div>
+        <div className="library-top"><div><p className="eyebrow">YOUR IMPORTED SONGS</p><h2 id="library-title">歌曲库</h2><p>从已导入的歌词中选一首，继续练习发音与词汇。</p></div><div className="library-top-actions"><label className="library-search"><Search size={14} /><input id="library-search" type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="搜索歌名或歌手" aria-label="搜索歌名或歌手" />{librarySearch && <button type="button" onClick={() => setLibrarySearch('')} aria-label="清除搜索"><X size={13} /></button>}</label><span className="library-count">{librarySearch ? `找到 ${visibleLibrarySongs.length} / ${allSongs.length} 首` : `已导入 ${allSongs.length} 首`}</span><button className="library-import-trigger" type="button" onClick={openImportDialog}><Upload size={14} /> 导入歌曲</button>{!IS_ANDROID_APP && <button className="library-import-trigger" type="button" onClick={() => setLinkImportOpen(true)}><Link2 size={14} /> 链接导入</button>}{!IS_ANDROID_APP && <button className="library-import-trigger" type="button" onClick={shareComputerSongs}><Upload size={14} /> 共享到手机</button>}</div></div>
         <div className="library-backup-bar"><div><b>保存你的学习记录</b><span>在设置中统一管理数据备份与 AI 服务。</span></div><div className="library-backup-actions"><button type="button" onClick={() => setSettingsOpen(true)}><Settings size={14} /> 数据管理</button></div></div>
         {/* 电脑网页主动开启一次性传歌，手机才能看见网页缓存中的歌曲。 */}
         {!IS_ANDROID_APP && computerShare && <div className="computer-share-card" role="status">
@@ -1915,6 +1917,8 @@ export default function App() {
       {importError && <p className="song-import-error"><CircleAlert size={14} /> {importError}</p>}
       <div className="song-import-actions"><button type="button" onClick={closeImportDialog} disabled={importBusy}>取消</button><button className="song-import-submit" type="submit" disabled={importBusy || importPreparing || importArtworkStatus === 'loading'}>{importBusy ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}{importBusy ? '正在保存…' : importAiMode === 'background' ? '导入并后台生成' : '直接导入歌曲'}</button></div>
     </form>}</div>}
+
+    {linkImportOpen && <LinkImportDialog onClose={() => setLinkImportOpen(false)} />}
 
     {detailOpen && <div className="detail-backdrop" role="presentation" onClick={closeDetail}><section className={`word-detail ${detailView === 'ai' ? 'ai-only-detail' : ''}`} role="dialog" aria-modal="true" aria-labelledby="detail-title" onClick={(event) => event.stopPropagation()}>
       <button className="detail-close" type="button" onClick={closeDetail} aria-label="关闭详情"><X size={18} /></button>

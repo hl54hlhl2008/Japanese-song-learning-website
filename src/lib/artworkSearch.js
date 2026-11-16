@@ -1,6 +1,7 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 
-const origin = import.meta.env.VITE_ANNOTATION_API_URL || 'http://127.0.0.1:8000'
+// 生产构建与后端同源托管，用相对路径 /api/...；仅开发模式回落到本机地址。
+const origin = import.meta.env.VITE_ANNOTATION_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '')
 const providers = ['Apple Music', '网易云音乐', 'QQ 音乐', '酷狗音乐']
 const key = (value) => String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
 

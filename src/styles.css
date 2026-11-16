@@ -753,3 +753,38 @@ body { background:radial-gradient(circle at 8% 4%,rgba(252,217,184,.45),transpar
 .app-update-dialog header { display:flex; align-items:center; justify-content:space-between; gap:12px; }.app-update-dialog header h3 { margin:0; font-size:22px; }.app-update-dialog header button { border:0; padding:8px; background:none; color:inherit; }
 .app-update-dialog p { font-size:14px; line-height:1.8; }.app-update-notes { white-space:pre-wrap; max-height:35dvh; overflow:auto; }.app-update-dialog footer { display:flex; justify-content:end; gap:12px; margin-top:22px; }.app-update-dialog footer button { padding:12px 16px; border:0; border-radius:12px; color:#426550; background:#eaf0e4; font:inherit; }.app-update-dialog footer button:last-child { background:#426550; color:white; }
 @media(max-width:380px) { .uta-android-font .settings-tabs button,.uta-android-font .settings-tabs .profile-settings-tab { font-size:13px; gap:4px; }.uta-android-font .settings-tabs svg { width:15px; height:15px; } }
+
+/* ── 链接导入面板 ───────────────────────────────────────────── */
+.link-import-progress {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.link-import-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1f2933;
+}
+.link-import-progress small {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.link-import-files {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #4b5563;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.link-import-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #9ca3af;
+}

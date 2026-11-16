@@ -26,3 +26,8 @@ dist
 ANDROID_APP_HANDOFF.md
 *.p12
 *.idsig
+
+# .env 备份含密钥，禁止提交；链接导入的临时目录也不入库
+server/.env.bak.*
+server/.env.*.bak
+.tools/import-tmp/

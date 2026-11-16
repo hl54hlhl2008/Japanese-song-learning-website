@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core'
 import { aiRequestHeaders } from './aiSettings'
 
-const apiOrigin = import.meta.env.VITE_ANNOTATION_API_URL || 'http://127.0.0.1:8000'
+// 生产构建与后端同源托管，用相对路径 /api/...；仅开发模式（Vite 5173 + uvicorn 8000）回落到本机地址。
+const apiOrigin = import.meta.env.VITE_ANNOTATION_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '')
 
 export async function annotateSongLines(lines) {
   // 手机端直接使用随 APK 安装的日语词典；电脑网页仍沿用现有 Python 服务。
