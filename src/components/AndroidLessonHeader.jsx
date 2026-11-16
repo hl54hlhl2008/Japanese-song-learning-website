@@ -25,7 +25,7 @@ export default function AndroidLessonHeader({ song, artwork, learned, mode, onMo
 }
 
 // 倍速控件固定在右下角、底栏上方，滚动歌词时仍然可见。
-export function FloatingPlaybackSpeed({ rate, onChange }) {
+export function FloatingPlaybackSpeed({ rate, onChange, lineLoop = false, onToggleLoop = null }) {
   const [open, setOpen] = useState(false)
   useEffect(() => {
     if (!open) return undefined
@@ -33,5 +33,5 @@ export function FloatingPlaybackSpeed({ rate, onChange }) {
     window.addEventListener('uta:navigate-back', back)
     return () => window.removeEventListener('uta:navigate-back', back)
   }, [open])
-  return <div className="study-floating-speed">{open && <div className="study-speed-options" role="group" aria-label="选择播放速度">{[1, 0.75, 0.5, 0.25].map((value) => <button key={value} type="button" aria-pressed={rate === value} onClick={() => { onChange(value); setOpen(false) }}>{value}×</button>)}</div>}<button className="study-speed-trigger" type="button" aria-label="逐句播放速度" aria-expanded={open} onClick={() => setOpen(!open)}>{rate}×</button></div>
+  return <div className="study-floating-speed">{open && <div className="study-speed-options" role="group" aria-label="选择播放速度">{[1, 0.75, 0.5, 0.25].map((value) => <button key={value} type="button" aria-pressed={rate === value} onClick={() => { onChange(value); setOpen(false) }}>{value}×</button>)}{onToggleLoop && <button className={`study-loop-option ${lineLoop ? 'active' : ''}`} type="button" aria-pressed={lineLoop} onClick={() => onToggleLoop()}>{lineLoop ? '循环中' : '单句循环'}</button>}</div>}<button className={`study-speed-trigger ${lineLoop ? 'looping' : ''}`} type="button" aria-label={lineLoop ? '逐句播放速度（单句循环已开启）' : '逐句播放速度'} aria-expanded={open} onClick={() => setOpen(!open)}>{lineLoop ? '↻' : ''}{rate}×</button></div>
 }

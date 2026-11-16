@@ -820,3 +820,24 @@ body { background:radial-gradient(circle at 8% 4%,rgba(252,217,184,.45),transpar
 .link-import-field .link-import-input::placeholder { color: #9aa5a0; }
 .link-import-field .link-import-input:focus { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(226,92,56,.12); }
 .link-import-field small { display: block; color: #718078; font-size: 10px; line-height: 1.5; }
+
+/* 单句循环开关 */
+.loop-toggle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid #aebfb6;
+  border-radius: 0;
+  color: #47604f;
+  background: #f8fbf9;
+  font: 10px var(--mono);
+  cursor: pointer;
+  transition: color .16s, border-color .16s, background .16s;
+}
+.loop-toggle:hover { border-color: var(--orange); color: var(--orange); }
+.loop-toggle.active { border-color: var(--orange); color: #fff; background: var(--orange); }
+.study-loop-option { border-top: 1px solid rgba(255,255,255,.14); font-size: 10px; }
+.study-loop-option.active { color: #ffd9a0; }
+.study-speed-trigger.looping { color: var(--orange); }

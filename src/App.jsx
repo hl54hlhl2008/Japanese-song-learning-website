@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
-import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, Link2, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Settings, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
+import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, Link2, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Repeat1, Save, Search, Settings, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
 import AnnotatedLine from './components/AnnotatedLine'
 import ComputerImportDialog from './components/ComputerImportDialog'
 import LinkImportDialog from './components/LinkImportDialog'
@@ -148,6 +148,11 @@ export default function App() {
   const [practicePosition, setPracticePosition] = useState(0)
   const [meaningOverrides, setMeaningOverrides] = useState(savedProgress.meaningOverrides || {})
   const [playbackRate, setPlaybackRate] = useState(savedProgress.playbackRate || 1)
+  // 单句循环：偏好单独存 localStorage，不写进学习备份，避免影响旧备份结构。
+  const [lineLoop, setLineLoop] = useState(() => {
+    try { return localStorage.getItem('uta.lineLoop') === '1' } catch { return false }
+  })
+  const loopStartRef = useRef(null)
   const [readingStyle, setReadingStyle] = useState(() => normalizeReadingStyle(savedProgress.readingStyle))
   // 原网页端保持原字体；仅安卓 WebView 切换为用户提供的本地字体。
   useEffect(() => {
@@ -1346,6 +1351,13 @@ export default function App() {
     setToast(`已切换为 ${nextRate}× 速度播放。`)
   }
 
+  function toggleLineLoop() {
+    const next = !lineLoop
+    setLineLoop(next)
+    try { localStorage.setItem('uta.lineLoop', next ? '1' : '0') } catch { /* 隐私模式下忽略 */ }
+    setToast(next ? '已开启单句循环：当前句会一直重复，直到你暂停或关闭。' : '已关闭单句循环。')
+  }
+
   function startClipPlayback(clip) {
     const audio = audioRef.current
     if (!audio) return
@@ -1355,6 +1367,9 @@ export default function App() {
     setSingAlongPlaying(false)
     const fallbackEnd = Number.isFinite(audio.duration) ? audio.duration : clip.start + 8
     clipEndRef.current = Math.max(clip.start + 0.12, clip.end ?? fallbackEnd)
+    // 循环模式下若两句时间戳过近（区间小于 0.3s），给一个 5 秒的回退区间，避免疯狂重播。
+    if (lineLoop && clipEndRef.current - clip.start < 0.3) clipEndRef.current = Math.min(fallbackEnd, clip.start + 5)
+    loopStartRef.current = clip.start
     audio.playbackRate = playbackRate
     try { audio.currentTime = clip.start } catch { /* Wait for metadata if the browser has not seeked yet. */ }
     audio.play()
@@ -1401,6 +1416,7 @@ export default function App() {
     if (!audioUrl || !audio) { setAudioError('这首歌尚无可播放的音频。'); return }
     pendingClipRef.current = null
     clipEndRef.current = null
+    loopStartRef.current = null
     continuousPlaybackRef.current = true
     continuousLineIdRef.current = lineId
     setSingAlongLineId(lineId)
@@ -1459,10 +1475,31 @@ export default function App() {
       return
     }
     if (!audio || clipEndRef.current == null || audio.currentTime < clipEndRef.current - 0.04) return
+    // 单句循环：到句尾不暂停，直接回到句首继续（保持 playingLineId 不变）。
+    if (lineLoop && loopStartRef.current != null) {
+      try { audio.currentTime = loopStartRef.current } catch { /* 元数据未就绪时忽略 */ }
+      if (audio.paused) audio.play().catch(() => setPlayingLineId(null))
+      return
+    }
     audio.pause()
     audio.currentTime = clipEndRef.current
     clipEndRef.current = null
     setPlayingLineId(null)
+  }
+
+  function handleAudioEnded() {
+    const audio = audioRef.current
+    // 循环模式下播到整首结尾时，回到当前句句首继续。
+    if (lineLoop && loopStartRef.current != null && audio && !continuousPlaybackRef.current) {
+      try { audio.currentTime = loopStartRef.current } catch { /* 忽略 */ }
+      audio.play().catch(() => { setPlayingLineId(null); setAudioError('浏览器未能继续循环播放。') })
+      return
+    }
+    clipEndRef.current = null
+    loopStartRef.current = null
+    continuousPlaybackRef.current = false
+    setPlayingLineId(null)
+    setSingAlongPlaying(false)
   }
 
   function toggleLearnedLine(lineId) {
@@ -1666,7 +1703,7 @@ export default function App() {
     })()}
     {IS_ANDROID_APP && androidLaunchVisible && <div className="android-launch-screen" role="img" aria-label="UTA 启动图：私のうた，聴いてください"><img src={androidLaunchPortrait} alt="" /><div className="android-launch-title" lang="ja"><span>私のうた</span><span>聴いてください</span></div></div>}
     <div className="page-grain" aria-hidden="true" />
-    <audio ref={audioRef} src={audioUrl || undefined} preload="metadata" onLoadedMetadata={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={() => { clipEndRef.current = null; continuousPlaybackRef.current = false; setPlayingLineId(null); setSingAlongPlaying(false) }} onError={() => { continuousPlaybackRef.current = false; setPlayingLineId(null); setSingAlongPlaying(false); setAudioError(`未能加载《${activeSong.title}》的音频文件。`) }} />
+    <audio ref={audioRef} src={audioUrl || undefined} preload="metadata" onLoadedMetadata={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={handleAudioEnded} onError={() => { continuousPlaybackRef.current = false; setPlayingLineId(null); setSingAlongPlaying(false); setAudioError(`未能加载《${activeSong.title}》的音频文件。`) }} />
     {/* 学习详情页由歌曲栏承担页头，原品牌栏保留给主页面和网页。 */}
     <header className={`topbar ${IS_ANDROID_APP ? `android-topbar ${['lesson', 'sing-along'].includes(activePage) ? 'study-topbar-hidden' : ''}` : ''}`}>
       <button className="brand" type="button" onClick={showLessonPage} aria-label="UTA 首页"><span className="brand-mark">う</span><span>UTA<span className="brand-dot">.</span></span></button>
@@ -1683,7 +1720,7 @@ export default function App() {
       {IS_ANDROID_APP && activePage === 'sing-along' && <AndroidSingAlong song={activeSong} songs={allSongs} artwork={artworkForSong(activeSong)} audioReady={Boolean(audioUrl)} playing={singAlongPlaying} currentLineId={singAlongLineId} onSelectSong={chooseSong} onPlayFromStart={() => startContinuousPlayback(0, activeSong.lines[0]?.id ?? null)} onPlayFromLine={playSingAlongFromLine} onToggle={toggleSingAlong} error={audioError} onChoose={openStudySongPicker} annotations={annotations} corrections={corrections} readingStyle={readingStyle} />}
       {activePage === 'lesson' && <>
       {IS_ANDROID_APP && <AndroidLessonHeader song={activeSong} artwork={artworkForSong(activeSong)} learned={learnedLines.size} mode={mode} onMode={setMode} readingStyle={readingStyle} onReadingStyle={setReadingStyle} onChoose={openStudySongPicker} ready={readySentenceCount} generating={Boolean(sentenceExplanationJob)} onGenerate={generateCurrentSongExplanations} onWordDetails={openWordDetails} error={annotationError || audioError || sentenceExplanationError?.songId === activeSong.id && sentenceExplanationError.message} />}
-      {IS_ANDROID_APP && <FloatingPlaybackSpeed rate={playbackRate} onChange={choosePlaybackRate} />}
+      {IS_ANDROID_APP && <FloatingPlaybackSpeed rate={playbackRate} onChange={choosePlaybackRate} lineLoop={lineLoop} onToggleLoop={toggleLineLoop} />}
       {/* 问 AI 固定在倍速上方，每首歌曲独立会话，提问实时带入歌词和校正读音。 */}
       {IS_ANDROID_APP && <LyricChat key={activeSong.id} song={activeSong} lineId={activeLine.id} annotations={annotations} corrections={corrections} />}
       {/* 已按用户要求移除逐句页顶部返回按钮；系统返回手势和底部导航继续可用。 */}
@@ -1728,7 +1765,7 @@ export default function App() {
         <section className="lyrics-panel" aria-labelledby="lyrics-heading">
           <div className="panel-head"><div><p className="eyebrow">{practiceActive ? 'LISTEN, RECALL, REVEAL' : 'AUTO ANNOTATE, THEN VERIFY'}</p><h2 id="lyrics-heading">{practiceActive ? '逐句练习' : '逐句读音'}</h2></div>{!practiceActive && <div className="view-toggle" role="group" aria-label="读音显示方式">{[['original', '原文'], ['reading', readingLabel], ['practice', '遮住练习']].map(([value, label]) => <button className={mode === value ? 'selected' : ''} onClick={() => setMode(value)} type="button" key={value}>{label}</button>)}</div>}</div>
           {!practiceActive && <div className="pronunciation-strip"><div><span className="strip-index">{annotating ? 'ANNOTATING' : annotationError ? 'OFFLINE' : 'AUTO READY'}</span><b>{annotating ? '正在为整首歌词生成读音…' : annotationError || '点击带注音的汉字词，可在右侧修改读音'}</b></div><span className="source-badge"><WandSparkles size={13} /> SudachiPy + 本地日中词典</span></div>}
-          <div className="audio-tools"><p className="audio-play-tip"><Volume2 size={13} /> {audioUrl ? practiceActive ? '先听这一句，再尝试自己读出歌词。' : IS_ANDROID_APP ? '点整句区域播放，再点暂停；暂停后再点，从句首重播。' : '点击每句右侧的播放按钮；手机上也可点击整句区域播放或暂停。' : '未找到同名音频，仍可练习读音与词义。'}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={(event) => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度"><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label></div>
+          <div className="audio-tools"><p className="audio-play-tip"><Volume2 size={13} /> {audioUrl ? practiceActive ? '先听这一句，再尝试自己读出歌词。' : IS_ANDROID_APP ? '点整句区域播放，再点暂停；暂停后再点，从句首重播。' : '点击每句右侧的播放按钮；手机上也可点击整句区域播放或暂停。' : '未找到同名音频，仍可练习读音与词义。'}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={(event) => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度"><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label><button className={`loop-toggle ${lineLoop ? 'active' : ''}`} type="button" aria-pressed={lineLoop} onClick={toggleLineLoop} title={lineLoop ? '关闭单句循环' : '开启单句循环：当前句反复播放'}><Repeat1 size={13} /><span>{lineLoop ? '循环中' : '单句循环'}</span></button></div>
           {!practiceActive && <div className="sentence-explanation-status"><div><Sparkles size={15} /><span>{sentenceExplanationJob?.songId === activeSong.id ? `正在生成整句解析 ${sentenceExplanationJob.ready} / ${sentenceExplanationJob.total}` : readySentenceCount === activeSong.lines.length ? `整首歌的 ${readySentenceCount} 句解析已就绪` : `整句解析已准备 ${readySentenceCount} / ${activeSong.lines.length} 句`}</span></div>{readySentenceCount < activeSong.lines.length && <button type="button" disabled={Boolean(sentenceExplanationJob)} onClick={generateCurrentSongExplanations}>{sentenceExplanationJob?.songId === activeSong.id ? '生成中…' : '生成剩余解析'}</button>}</div>}
           {!practiceActive && readySentenceCount < activeSong.lines.length && <p className="sentence-explanation-disclosure">生成时会将歌词及已有译文发送给设置中的 AI 服务，可能产生 API 调用费用。</p>}
           {!practiceActive && sentenceExplanationError?.songId === activeSong.id && <p className="sentence-explanation-error" role="alert"><CircleAlert size={13} /> {sentenceExplanationError.message}</p>}
