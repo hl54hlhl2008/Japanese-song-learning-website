@@ -47,7 +47,16 @@ async function postAi(path, payload, settings, signal) {
     body: JSON.stringify(payload),
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'AI 服务暂不可用，请检查配置')
+  if (!response.ok) {
+    // FastAPI 校验错误（422）的 detail 是数组，转成可读文本，避免只看到通用提示。
+    const detail = body?.detail
+    const message = typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? detail.map((item) => `${(item?.loc || []).slice(1).join('.') || '请求'}：${item?.msg || '格式不正确'}`).join('；')
+        : `AI 服务暂不可用（HTTP ${response.status}），请检查配置`
+    throw new Error(message)
+  }
   return body
 }
 

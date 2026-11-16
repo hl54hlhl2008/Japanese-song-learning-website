@@ -257,7 +257,9 @@ class AnnotatedLine(BaseModel):
 
 
 class SongReviewRequest(BaseModel):
-    song_id: str = Field(min_length=1, max_length=120)
+    # song_id 是 "folder-" + encodeURIComponent(文件名)，日文长歌名可达 230+ 字符；
+    # 该字段只用于标识，不参与 prompt，因此放宽上限避免 422。
+    song_id: str = Field(min_length=1, max_length=512)
     title: str = Field(min_length=1, max_length=160)
     artist: str = Field(default="", max_length=160)
     lines: list[LyricLine] = Field(min_length=1, max_length=300)
@@ -445,9 +447,14 @@ def call_deepseek_json(
     try:
         result = request_json(provider, prompt, payload, max_tokens, thinking)
     except HTTPException as exc:
-        if provider.protocol != "deepseek" or thinking != "enabled" or "JSON" not in str(exc.detail):
+        if provider.protocol == "deepseek" and thinking == "enabled" and "JSON" in str(exc.detail):
+            result = request_json(provider, prompt, payload, max_tokens, "disabled")
+        elif exc.status_code == 502:
+            # 思维链截断、上游超时等偶发失败：退避后重试一次，避免用户看到无意义报错。
+            time.sleep(0.6)
+            result = request_json(provider, prompt, payload, max_tokens, thinking)
+        else:
             raise
-        result = request_json(provider, prompt, payload, max_tokens, "disabled")
     if use_cache:
         set_cached_ai_result(cache_key, result)
     return result
@@ -670,8 +677,10 @@ def review_song_with_ai(payload: SongReviewRequest, request: Request) -> dict[st
         "Use confidence from 0 to 1, include only confidence >= 0.55, and return at most 20 suggestions."
     )
     result = call_deepseek_json(
+        # 思维链模型（如 deepseek-v4.1-flash）会先输出大量 reasoning，1800 常被吃光导致正文为空，
+        # 因此这里给足预算；请求体本身只有歌词词素，输出上限主要影响成本而不是速度。
         "review-song", prompt, ai_input, client_host=client_host(request), config=provider_from_request(request),
-        max_tokens=1800, thinking="disabled",
+        max_tokens=4096, thinking="disabled",
     )
     suggestions: list[dict[str, Any]] = []
     seen: set[tuple[int, int]] = set()
@@ -723,7 +732,7 @@ def explain_sentences_with_ai(payload: ExplainSentenceBatchRequest, request: Req
     )
     result = call_deepseek_json(
         "explain-sentences-v1", prompt, ai_input, client_host=client_host(request), config=provider_from_request(request),
-        max_tokens=3400, thinking="disabled",
+        max_tokens=4800, thinking="disabled",
     )
     raw_items = result.get("explanations", [])
     explanations: list[dict[str, Any]] = []

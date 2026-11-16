@@ -190,4 +190,4 @@ def request_json(provider: Provider, prompt: str, payload: dict, max_tokens: int
     except (error.URLError, TimeoutError, OSError):
         raise HTTPException(502, '无法连接 AI 服务或请求超时，请检查地址及网络。') from None
     except (ValueError, KeyError, IndexError, TypeError):
-        raise HTTPException(502, 'AI 未返回可用的 JSON 内容，请确认模型支持文本对话及 JSON 输出。') from None
+        raise HTTPException(502, 'AI 未返回可用的 JSON 内容（可能被思维链占满输出预算或被截断），请重试一次。') from None
