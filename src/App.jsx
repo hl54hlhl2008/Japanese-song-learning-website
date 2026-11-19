@@ -35,6 +35,7 @@ import { displayReading, lineReading as getLineReading, normalizeReadingStyle } 
 import { inspectCloudBackup } from './lib/cloudBackup'
 import { wrapCloudBackup,restoreCloudData } from './lib/cloudData'
 import { markCloudDirty } from './lib/webDav'
+import { buildPlaybackClip, DEFAULT_PLAYBACK_MODE, isPlaybackModeEntryAvailable, LINE_PLAYBACK_LEAD_IN_SECONDS, lineLoopControl, linePlaybackButton, normalizePlaybackMode, PLAYBACK_MODE_FROM_START, PLAYBACK_MODE_SINGLE, playbackModeSelection, resolvePlaybackMode } from './lib/playbackModes'
 import WebDavAutoSync from './components/WebDavAutoSync'
 import {useAppUpdates,AppUpdatePrompt} from './components/AppUpdates'
 
@@ -42,7 +43,6 @@ const PROGRESS_KEY = BACKUP_STORAGE_KEYS.progress
 const ANNOTATION_KEY = BACKUP_STORAGE_KEYS.annotations
 const AI_REVIEW_KEY = BACKUP_STORAGE_KEYS.aiReviews
 const SENTENCE_EXPLANATION_KEY = BACKUP_STORAGE_KEYS.sentenceExplanations
-const LINE_PLAYBACK_LEAD_IN_SECONDS = 0.5
 const SENTENCE_BATCH_SIZE = 8
 // 选择“导入并生成 AI 解析”后记录待处理歌曲，应用重开时可续做未完成批次。
 const PENDING_AI_IMPORT_KEY = 'uta-pending-ai-imports-v1'
@@ -148,11 +148,15 @@ export default function App() {
   const [practicePosition, setPracticePosition] = useState(0)
   const [meaningOverrides, setMeaningOverrides] = useState(savedProgress.meaningOverrides || {})
   const [playbackRate, setPlaybackRate] = useState(savedProgress.playbackRate || 1)
+  // 歌词列表播放模式：只在网页歌词列表入口生效，刷新后回到默认单句。
+  const [playbackMode, setPlaybackMode] = useState(DEFAULT_PLAYBACK_MODE)
+  const playbackModeEntryAvailable = isPlaybackModeEntryAvailable({ isAndroid: IS_ANDROID_APP, practiceActive, page: activePage })
+  const lyricListMode = resolvePlaybackMode({ isAndroid: IS_ANDROID_APP, practiceActive, page: activePage, mode: playbackMode })
   // 单句循环：偏好单独存 localStorage，不写进学习备份，避免影响旧备份结构。
   const [lineLoop, setLineLoop] = useState(() => {
     try { return localStorage.getItem('uta.lineLoop') === '1' } catch { return false }
   })
-  const loopStartRef = useRef(null)
+  const lyricListLoopControl = lineLoopControl({ mode: lyricListMode, loop: lineLoop })
   const [readingStyle, setReadingStyle] = useState(() => normalizeReadingStyle(savedProgress.readingStyle))
   // 原网页端保持原字体；仅安卓 WebView 切换为用户提供的本地字体。
   useEffect(() => {
@@ -237,7 +241,9 @@ export default function App() {
   const dragSelectionRef = useRef(null)
   const suppressNextTokenClick = useRef(false)
   const audioRef = useRef(null)
-  const clipEndRef = useRef(null)
+  // 当前片段：区间、模式、循环和请求序号都随片段一起保存，晚到的事件靠序号作废。
+  const clipRef = useRef(null)
+  const clipRequestRef = useRef(0)
   const pendingClipRef = useRef(null)
   const continuousPlaybackRef = useRef(false)
   const pendingContinuousRef = useRef(null)
@@ -549,7 +555,9 @@ export default function App() {
       audio.pause()
       audio.currentTime = 0
     }
-    clipEndRef.current = null
+    // 换歌时作废旧片段请求，晚到的元数据或 play() 结果不能再恢复旧标记。
+    clipRequestRef.current += 1
+    clipRef.current = null
     pendingClipRef.current = null
     continuousPlaybackRef.current = false
     pendingContinuousRef.current = null
@@ -559,6 +567,13 @@ export default function App() {
     setSingAlongLineId(null)
     setAudioError('')
   }, [activeSong.id])
+
+  // 离开网页歌词列表（歌曲库、逐句练习等）时停止片段，不让音频在后台继续。
+  useEffect(() => {
+    if (IS_ANDROID_APP) return
+    if (activePage === 'lesson' && !practiceActive) return
+    stopClipPlayback()
+  }, [activePage, practiceActive])
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = playbackRate
@@ -579,9 +594,19 @@ export default function App() {
   useEffect(() => { setDraftReading(focusReading) }, [focusKey, focusReading])
   useEffect(() => { setDraftMeaning(wordMeaning) }, [meaningKey, wordMeaning])
 
-  function stopLinePlayback() {
+  function stopClipPlayback() {
+    // 递增请求序号会作废等待中的片段和晚到的 play() 结果。
+    clipRequestRef.current += 1
     audioRef.current?.pause()
-    clipEndRef.current = null
+    clipRef.current = null
+    pendingClipRef.current = null
+    setPlayingLineId(null)
+  }
+
+  function stopLinePlayback() {
+    clipRequestRef.current += 1
+    audioRef.current?.pause()
+    clipRef.current = null
     pendingClipRef.current = null
     continuousPlaybackRef.current = false
     pendingContinuousRef.current = null
@@ -670,7 +695,7 @@ export default function App() {
     // 原逻辑：onClick={() => chooseLine(line.id)}，现保留给电脑端。
     if (event.target.closest('button, a, input, select, textarea, .sentence-inline-analysis')) return
     chooseLine(lineId)
-    if (isMobileLyricPlayback()) playLine(lineId)
+    if (isMobileLyricPlayback()) playLine(lineId, lyricListMode)
   }
 
   function startPractice(scope = 'all', songId = activeSong.id, targetLineId = null) {
@@ -1352,35 +1377,55 @@ export default function App() {
   }
 
   function toggleLineLoop() {
+    if (!lyricListLoopControl.available) return
     const next = !lineLoop
     setLineLoop(next)
+    // 正在播放的单句片段跟随开关变化；新模式片段本来就不会循环。
+    if (clipRef.current?.mode === PLAYBACK_MODE_SINGLE) clipRef.current = { ...clipRef.current, loops: next }
     try { localStorage.setItem('uta.lineLoop', next ? '1' : '0') } catch { /* 隐私模式下忽略 */ }
     setToast(next ? '已开启单句循环：当前句会一直重复，直到你暂停或关闭。' : '已关闭单句循环。')
   }
 
-  function startClipPlayback(clip) {
+  // 播放模式只影响下一次片段；切换时立即停止当前片段并取消等待中的请求。
+  function choosePlaybackMode(nextMode) {
+    const normalized = normalizePlaybackMode(nextMode)
+    if (normalized === playbackMode) return
+    stopClipPlayback()
+    setPlaybackMode(normalized)
+    setToast(normalized === PLAYBACK_MODE_FROM_START
+      ? '已切换为从开头播放到当前句：每次从 0 秒播到目标句结束。'
+      : '已切换为单句播放：只播放点击的这一句。')
+  }
+
+  function startClipPlayback(request) {
     const audio = audioRef.current
     if (!audio) return
     // 逐句播放沿用旧截断行为，进入时关闭连续跟唱状态。
     continuousPlaybackRef.current = false
     pendingContinuousRef.current = null
     setSingAlongPlaying(false)
-    const fallbackEnd = Number.isFinite(audio.duration) ? audio.duration : clip.start + 8
-    clipEndRef.current = Math.max(clip.start + 0.12, clip.end ?? fallbackEnd)
-    // 循环模式下若两句时间戳过近（区间小于 0.3s），给一个 5 秒的回退区间，避免疯狂重播。
-    if (lineLoop && clipEndRef.current - clip.start < 0.3) clipEndRef.current = Math.min(fallbackEnd, clip.start + 5)
-    loopStartRef.current = clip.start
+    // 元数据已就绪后才计算区间，等到的片段也能用上真实音频时长。
+    const clip = buildPlaybackClip({ lines: activeSong.lines, lineIndex: request.lineIndex, mode: request.mode, duration: audio.duration, loop: request.loop })
+    if (!clip) return
+    clipRef.current = { ...clip, token: request.token }
     audio.playbackRate = playbackRate
     try { audio.currentTime = clip.start } catch { /* Wait for metadata if the browser has not seeked yet. */ }
     audio.play()
-      .then(() => { setPlayingLineId(clip.lineId); setAudioError('') })
+      .then(() => {
+        // 晚到的播放结果不能恢复已经被替换或取消的旧片段。
+        if (request.token !== clipRequestRef.current) return
+        setPlayingLineId(clip.lineId)
+        setAudioError('')
+      })
       .catch(() => {
+        if (request.token !== clipRequestRef.current) return
+        clipRef.current = null
         setPlayingLineId(null)
         setAudioError('浏览器未能开始播放该句音频。')
       })
   }
 
-  function playLine(lineId) {
+  function playLine(lineId, requestedMode = DEFAULT_PLAYBACK_MODE) {
     if (!audioUrl) {
       setAudioError('未找到与这首歌词同名的音频文件。')
       return
@@ -1391,32 +1436,30 @@ export default function App() {
     if (!line || !audio) return
     if (playingLineId === lineId && !audio.paused) {
       audio.pause()
+      clipRef.current = null
       setPlayingLineId(null)
       return
     }
-    const nextStart = activeSong.lines[lineIndex + 1]?.start
-    const clip = {
-      lineId,
-      // LRC marks often land just after the initial consonant. Start a little
-      // early so learners hear the complete onset of the sung line.
-      start: Math.max(0, (line.start || 0) - LINE_PLAYBACK_LEAD_IN_SECONDS),
-      end: Number.isFinite(nextStart) ? nextStart : null,
-    }
+    // 每次点击都作废上一个片段（包括还在等元数据的那个）。
+    const request = { lineIndex, lineId, mode: normalizePlaybackMode(requestedMode), loop: lineLoop, token: clipRequestRef.current + 1 }
+    clipRequestRef.current = request.token
     if (audio.readyState < 1) {
-      pendingClipRef.current = clip
+      pendingClipRef.current = request
       audio.load()
       return
     }
-    startClipPlayback(clip)
+    pendingClipRef.current = null
+    startClipPlayback(request)
   }
 
-  // 跟唱从指定时间开始持续播放到音频结束；不设置逐句的 clipEnd。
+  // 跟唱从指定时间开始持续播放到音频结束；不会设置逐句片段。
   function startContinuousPlayback(start, lineId) {
     const audio = audioRef.current
     if (!audioUrl || !audio) { setAudioError('这首歌尚无可播放的音频。'); return }
+    // 跟唱接管播放，逐句片段及其等待中的请求全部作废。
+    clipRequestRef.current += 1
     pendingClipRef.current = null
-    clipEndRef.current = null
-    loopStartRef.current = null
+    clipRef.current = null
     continuousPlaybackRef.current = true
     continuousLineIdRef.current = lineId
     setSingAlongLineId(lineId)
@@ -1453,10 +1496,12 @@ export default function App() {
   function handleAudioLoadedMetadata() {
     const continuous = pendingContinuousRef.current
     if (continuous) { startContinuousPlayback(continuous.start, continuous.lineId); return }
-    const clip = pendingClipRef.current
-    if (!clip) return
+    const request = pendingClipRef.current
+    if (!request) return
     pendingClipRef.current = null
-    startClipPlayback(clip)
+    // 换歌、切模式或换句后，晚到的元数据不能再启动旧片段。
+    if (request.token !== clipRequestRef.current) return
+    startClipPlayback(request)
   }
 
   function handleAudioTimeUpdate() {
@@ -1474,32 +1519,51 @@ export default function App() {
       }
       return
     }
-    if (!audio || clipEndRef.current == null || audio.currentTime < clipEndRef.current - 0.04) return
+    const clip = clipRef.current
+    if (!audio || !clip || clip.end == null || audio.currentTime < clip.end - 0.04) return
     // 单句循环：到句尾不暂停，直接回到句首继续（保持 playingLineId 不变）。
-    if (lineLoop && loopStartRef.current != null) {
-      try { audio.currentTime = loopStartRef.current } catch { /* 元数据未就绪时忽略 */ }
-      if (audio.paused) audio.play().catch(() => setPlayingLineId(null))
+    // 循环与否由实际片段决定：新模式和没开循环的片段只播一次。
+    if (clip.loops) {
+      try { audio.currentTime = clip.start } catch { /* 元数据未就绪时忽略 */ }
+      if (audio.paused) audio.play().catch(() => { clipRef.current = null; setPlayingLineId(null) })
       return
     }
     audio.pause()
-    audio.currentTime = clipEndRef.current
-    clipEndRef.current = null
+    try { audio.currentTime = clip.end } catch { /* 接近音频末尾时忽略 seek 异常 */ }
+    clipRef.current = null
     setPlayingLineId(null)
   }
 
   function handleAudioEnded() {
     const audio = audioRef.current
+    const clip = clipRef.current
     // 循环模式下播到整首结尾时，回到当前句句首继续。
-    if (lineLoop && loopStartRef.current != null && audio && !continuousPlaybackRef.current) {
-      try { audio.currentTime = loopStartRef.current } catch { /* 忽略 */ }
-      audio.play().catch(() => { setPlayingLineId(null); setAudioError('浏览器未能继续循环播放。') })
+    if (clip?.loops && audio && !continuousPlaybackRef.current) {
+      try { audio.currentTime = clip.start } catch { /* 忽略 */ }
+      audio.play().catch(() => {
+        clipRef.current = null
+        setPlayingLineId(null)
+        setAudioError('浏览器未能继续循环播放。')
+      })
       return
     }
-    clipEndRef.current = null
-    loopStartRef.current = null
+    clipRef.current = null
+    pendingClipRef.current = null
     continuousPlaybackRef.current = false
     setPlayingLineId(null)
     setSingAlongPlaying(false)
+  }
+
+  function handleAudioError() {
+    // 加载失败时清除片段与待播请求，播放标记复位，只保留错误提示。
+    clipRequestRef.current += 1
+    clipRef.current = null
+    pendingClipRef.current = null
+    pendingContinuousRef.current = null
+    continuousPlaybackRef.current = false
+    setPlayingLineId(null)
+    setSingAlongPlaying(false)
+    setAudioError(`未能加载《${activeSong.title}》的音频文件。`)
   }
 
   function toggleLearnedLine(lineId) {
@@ -1638,7 +1702,7 @@ export default function App() {
     setSelectedText(null)
     setSelectedPhraseRange(null)
     // 词语按钮会阻止冒泡；手机上点歌词文字也应算点到了整句播放热区。
-    if (isMobileLyricPlayback()) playLine(lineId)
+    if (isMobileLyricPlayback()) playLine(lineId, lyricListMode)
   }
 
   function jumpToAiSuggestion(suggestion) {
@@ -1703,7 +1767,7 @@ export default function App() {
     })()}
     {IS_ANDROID_APP && androidLaunchVisible && <div className="android-launch-screen" role="img" aria-label="UTA 启动图：私のうた，聴いてください"><img src={androidLaunchPortrait} alt="" /><div className="android-launch-title" lang="ja"><span>私のうた</span><span>聴いてください</span></div></div>}
     <div className="page-grain" aria-hidden="true" />
-    <audio ref={audioRef} src={audioUrl || undefined} preload="metadata" onLoadedMetadata={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={handleAudioEnded} onError={() => { continuousPlaybackRef.current = false; setPlayingLineId(null); setSingAlongPlaying(false); setAudioError(`未能加载《${activeSong.title}》的音频文件。`) }} />
+    <audio ref={audioRef} src={audioUrl || undefined} preload="metadata" onLoadedMetadata={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={handleAudioEnded} onError={handleAudioError} />
     {/* 学习详情页由歌曲栏承担页头，原品牌栏保留给主页面和网页。 */}
     <header className={`topbar ${IS_ANDROID_APP ? `android-topbar ${['lesson', 'sing-along'].includes(activePage) ? 'study-topbar-hidden' : ''}` : ''}`}>
       <button className="brand" type="button" onClick={showLessonPage} aria-label="UTA 首页"><span className="brand-mark">う</span><span>UTA<span className="brand-dot">.</span></span></button>
@@ -1765,7 +1829,8 @@ export default function App() {
         <section className="lyrics-panel" aria-labelledby="lyrics-heading">
           <div className="panel-head"><div><p className="eyebrow">{practiceActive ? 'LISTEN, RECALL, REVEAL' : 'AUTO ANNOTATE, THEN VERIFY'}</p><h2 id="lyrics-heading">{practiceActive ? '逐句练习' : '逐句读音'}</h2></div>{!practiceActive && <div className="view-toggle" role="group" aria-label="读音显示方式">{[['original', '原文'], ['reading', readingLabel], ['practice', '遮住练习']].map(([value, label]) => <button className={mode === value ? 'selected' : ''} onClick={() => setMode(value)} type="button" key={value}>{label}</button>)}</div>}</div>
           {!practiceActive && <div className="pronunciation-strip"><div><span className="strip-index">{annotating ? 'ANNOTATING' : annotationError ? 'OFFLINE' : 'AUTO READY'}</span><b>{annotating ? '正在为整首歌词生成读音…' : annotationError || '点击带注音的汉字词，可在右侧修改读音'}</b></div><span className="source-badge"><WandSparkles size={13} /> SudachiPy + 本地日中词典</span></div>}
-          <div className="audio-tools"><p className="audio-play-tip"><Volume2 size={13} /> {audioUrl ? practiceActive ? '先听这一句，再尝试自己读出歌词。' : IS_ANDROID_APP ? '点整句区域播放，再点暂停；暂停后再点，从句首重播。' : '点击每句右侧的播放按钮；手机上也可点击整句区域播放或暂停。' : '未找到同名音频，仍可练习读音与词义。'}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={(event) => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度"><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label><button className={`loop-toggle ${lineLoop ? 'active' : ''}`} type="button" aria-pressed={lineLoop} onClick={toggleLineLoop} title={lineLoop ? '关闭单句循环' : '开启单句循环：当前句反复播放'}><Repeat1 size={13} /><span>{lineLoop ? '循环中' : '单句循环'}</span></button></div>
+          {playbackModeEntryAvailable && <div className="playback-mode-bar" role="group" aria-label="播放模式"><span>播放模式</span>{playbackModeSelection(playbackMode).map((option) => <button key={option.value} className={`playback-mode-option ${option.selected ? 'active' : ''}`} type="button" aria-pressed={option.selected} title={option.title} onClick={() => choosePlaybackMode(option.value)}>{option.label}</button>)}</div>}
+          <div className="audio-tools"><p className="audio-play-tip"><Volume2 size={13} /> {audioUrl ? practiceActive ? '先听这一句，再尝试自己读出歌词。' : IS_ANDROID_APP ? '点整句区域播放，再点暂停；暂停后再点，从句首重播。' : lyricListMode === PLAYBACK_MODE_FROM_START ? '选择「从开头播放到当前句」后，点歌词的播放按钮或整句区域，从 0 秒播到这一句结束。' : '点击每句右侧的播放按钮；手机上也可点击整句区域播放或暂停。' : '未找到同名音频，仍可练习读音与词义。'}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={(event) => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度"><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label><button className={`loop-toggle ${lyricListLoopControl.active ? 'active' : ''}`} type="button" aria-pressed={lyricListLoopControl.pressed} disabled={lyricListLoopControl.disabled} onClick={toggleLineLoop} title={lyricListLoopControl.title}><Repeat1 size={13} /><span>{lyricListLoopControl.label}</span></button></div>
           {!practiceActive && <div className="sentence-explanation-status"><div><Sparkles size={15} /><span>{sentenceExplanationJob?.songId === activeSong.id ? `正在生成整句解析 ${sentenceExplanationJob.ready} / ${sentenceExplanationJob.total}` : readySentenceCount === activeSong.lines.length ? `整首歌的 ${readySentenceCount} 句解析已就绪` : `整句解析已准备 ${readySentenceCount} / ${activeSong.lines.length} 句`}</span></div>{readySentenceCount < activeSong.lines.length && <button type="button" disabled={Boolean(sentenceExplanationJob)} onClick={generateCurrentSongExplanations}>{sentenceExplanationJob?.songId === activeSong.id ? '生成中…' : '生成剩余解析'}</button>}</div>}
           {!practiceActive && readySentenceCount < activeSong.lines.length && <p className="sentence-explanation-disclosure">生成时会将歌词及已有译文发送给设置中的 AI 服务，可能产生 API 调用费用。</p>}
           {!practiceActive && sentenceExplanationError?.songId === activeSong.id && <p className="sentence-explanation-error" role="alert"><CircleAlert size={13} /> {sentenceExplanationError.message}</p>}
@@ -1794,6 +1859,8 @@ export default function App() {
               const lineTokens = annotation?.tokens
               const current = line.id === activeLine.id
               const isPlaying = playingLineId === line.id
+              // 行播放按钮的文案与激活状态由播放模式的纯函数给出。
+              const playControl = linePlaybackButton({ mode: lyricListMode, isPlaying, displayNumber: line.displayNumber })
               const isLearned = learnedLines.has(line.id)
               const lineReading = getLineReading(lineTokens, corrections, activeSong.id, line.id, readingStyle)
               const hasSentenceExplanation = hasCachedSentenceExplanation(currentSentenceCache, line)
@@ -1806,7 +1873,7 @@ export default function App() {
                   <div className={`reading ${lineTokens ? '' : 'needs-review'}`}>{mode === 'reading' ? lineReading || '正在生成读音…' : mode === 'practice' ? '读音已隐藏，尝试自己读出这一句' : `切换到“${readingLabel}”查看自动标注`}</div>
                   {line.translation && <div className="translation lyric-translation">{line.translation}</div>}
                 </div>
-                <div className="line-actions"><button className={`line-action line-play ${isPlaying ? 'playing' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); playLine(line.id) }} aria-label={`${isPlaying ? '暂停' : '播放'}第 ${line.displayNumber} 句`} title={`${isPlaying ? '暂停' : '播放'}这一句`}>{isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button><button className={`line-mastery ${isLearned ? 'mastered' : ''}`} type="button" aria-pressed={isLearned} onClick={(event) => { event.stopPropagation(); toggleLearnedLine(line.id) }} title={isLearned ? '点击改为未掌握' : '点击标记为已掌握'}>{isLearned ? <Check size={12} /> : <Circle size={11} />}<span>{isLearned ? '已掌握' : '未掌握'}</span></button><button className="sentence-explain-link" type="button" aria-expanded={sentenceExpanded} aria-controls={`sentence-analysis-${activeSong.id}-${line.id}`} disabled={!hasSentenceExplanation && Boolean(sentenceExplanationJob)} onClick={(event) => { event.stopPropagation(); showSentenceExplanation(line) }}><Sparkles size={11} /> {sentenceExpanded ? '收起解析' : hasSentenceExplanation ? '查看解析' : sentenceExplanationJob ? '生成中…' : '生成解析'}</button></div>
+                <div className="line-actions"><button className={`line-action line-play ${playControl.active ? 'playing' : ''}`} type="button" onClick={(event) => { event.stopPropagation(); playLine(line.id, lyricListMode) }} aria-label={playControl.label} title={playControl.title}>{isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button><button className={`line-mastery ${isLearned ? 'mastered' : ''}`} type="button" aria-pressed={isLearned} onClick={(event) => { event.stopPropagation(); toggleLearnedLine(line.id) }} title={isLearned ? '点击改为未掌握' : '点击标记为已掌握'}>{isLearned ? <Check size={12} /> : <Circle size={11} />}<span>{isLearned ? '已掌握' : '未掌握'}</span></button><button className="sentence-explain-link" type="button" aria-expanded={sentenceExpanded} aria-controls={`sentence-analysis-${activeSong.id}-${line.id}`} disabled={!hasSentenceExplanation && Boolean(sentenceExplanationJob)} onClick={(event) => { event.stopPropagation(); showSentenceExplanation(line) }}><Sparkles size={11} /> {sentenceExpanded ? '收起解析' : hasSentenceExplanation ? '查看解析' : sentenceExplanationJob ? '生成中…' : '生成解析'}</button></div>
                 {IS_ANDROID_APP && <span className="android-line-state">{isPlaying ? '♪ 正在播放' : current ? '点整句播放 · 长按编辑' : ''}</span>}
                 {sentenceExpanded && <SentenceAnalysis explanation={sentenceExplanationOpen.explanation} id={`sentence-analysis-${activeSong.id}-${line.id}`} />}
               </article>
