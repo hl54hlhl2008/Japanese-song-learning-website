@@ -135,6 +135,42 @@ test('新模式末句播到音频结束，未知时长时不设终点', () => {
   assert.equal(clamped.end, 12)
 })
 
+test('新模式末句终点不超过已知音频时长，0.12 秒下限只在时长允许时生效', () => {
+  // 末句从 0 秒起播，0.12 秒以下时音频时长优先；达到 0.12 秒时可满足下限。
+  for (const duration of [0, 0.08, 0.119, 0.12, 0.121]) {
+    const clip = buildPlaybackClip({ lines: [{ id: 'only', start: 0 }], lineIndex: 0, mode: PLAYBACK_MODE_FROM_START, duration })
+    assert.equal(clip.start, 0, `duration ${duration}`)
+    assert.equal(clip.end, duration, `duration ${duration}`)
+    assert.equal(clip.loops, false)
+  }
+
+  // 下一句时间戳早于 0.12 秒时，下限也不能越过音频时长。
+  const earlyNext = buildPlaybackClip({ lines: [{ id: 'a', start: 0 }, { id: 'b', start: 0.05 }], lineIndex: 0, mode: PLAYBACK_MODE_FROM_START, duration: 0.08 })
+  assert.equal(earlyNext.start, 0)
+  assert.equal(earlyNext.end, 0.08)
+
+  // 时长够长时仍保留 0.12 秒下限，避免过短片段。
+  const floored = buildPlaybackClip({ lines: [{ id: 'a', start: 0 }, { id: 'b', start: 0.05 }], lineIndex: 0, mode: PLAYBACK_MODE_FROM_START, duration: 15 })
+  assert.equal(floored.end, 0.12)
+
+  // 普通音频的中间句和末句行为不变。
+  const middle = buildPlaybackClip({ lines: LINES, lineIndex: 1, mode: PLAYBACK_MODE_FROM_START, duration: DURATION })
+  assert.equal(middle.end, 11)
+  const last = buildPlaybackClip({ lines: LINES, lineIndex: 2, mode: PLAYBACK_MODE_FROM_START, duration: DURATION })
+  assert.equal(last.end, DURATION)
+
+  // 时长未知时末句不设终点，有下一句时仍按下一句时间戳（保留原有下限）。
+  const unknownLast = buildPlaybackClip({ lines: LINES, lineIndex: 2, mode: PLAYBACK_MODE_FROM_START, duration: Number.NaN })
+  assert.equal(unknownLast.end, null)
+  const unknownLater = buildPlaybackClip({ lines: LINES, lineIndex: 1, mode: PLAYBACK_MODE_FROM_START, duration: Number.NaN })
+  assert.equal(unknownLater.end, 11)
+
+  // 单句模式的原有行为不受影响：末句已知时长不足 0.12 秒时仍保留 0.12 秒片段。
+  const single = buildPlaybackClip({ lines: [{ id: 'only', start: 0 }], lineIndex: 0, mode: PLAYBACK_MODE_SINGLE, duration: 0.08 })
+  assert.equal(single.start, 0)
+  assert.equal(single.end, 0.12)
+})
+
 test('区间计算不修改歌词数据，无效索引返回 null', () => {
   const lines = LINES.map((line) => ({ ...line }))
   buildPlaybackClip({ lines, lineIndex: 1, mode: PLAYBACK_MODE_FROM_START, duration: DURATION, loop: true })

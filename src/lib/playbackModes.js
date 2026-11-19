@@ -108,7 +108,13 @@ export function buildPlaybackClip({ lines, lineIndex, mode, duration = null, loo
   if (normalizedMode === PLAYBACK_MODE_FROM_START) {
     const laterStart = nextStrictlyLaterStart(lines, lineIndex, lineStart)
     const rawEnd = laterStart ?? totalDuration
-    const end = rawEnd == null ? null : Math.max(MIN_CLIP_SECONDS, Math.min(rawEnd, totalDuration ?? rawEnd))
+    // 终点优先受已知音频时长限制：不足 0.12 秒时截断到时长，够长时才保留 0.12 秒下限。
+    // 时长未知且没有后续句子时保持 null，交给音频自然结束。
+    let end = null
+    if (rawEnd != null) {
+      const withFloor = Math.max(MIN_CLIP_SECONDS, rawEnd)
+      end = totalDuration == null ? withFloor : Math.min(withFloor, totalDuration)
+    }
     return { lineId: line.id, mode: normalizedMode, lineStart, start: 0, end, loops: false }
   }
 
