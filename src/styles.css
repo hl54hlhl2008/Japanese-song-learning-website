@@ -838,6 +838,16 @@ body { background:radial-gradient(circle at 8% 4%,rgba(252,217,184,.45),transpar
 }
 .loop-toggle:hover { border-color: var(--orange); color: var(--orange); }
 .loop-toggle.active { border-color: var(--orange); color: #fff; background: var(--orange); }
+.loop-toggle:disabled { border-color: #cdd8d2; color: #98a49e; background: #f4f7f5; cursor: not-allowed; }
+.loop-toggle:disabled:hover { border-color: #cdd8d2; color: #98a49e; }
+
+/* 歌词列表播放模式：单句 / 从开头播放到当前句 */
+.playback-mode-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 0; }
+.playback-mode-bar > span { color: #697a72; font: 9px var(--mono); letter-spacing: .04em; }
+.playback-mode-option { padding: 5px 9px; border: 1px solid #aebfb6; border-radius: 0; color: #47604f; background: #f8fbf9; font: 10px var(--mono); cursor: pointer; transition: color .16s, border-color .16s, background .16s; }
+.playback-mode-option:hover { border-color: var(--orange); color: var(--orange); }
+.playback-mode-option.active { border-color: #365d50; color: #fff; background: #365d50; }
+@media (max-width:650px) { .playback-mode-bar { margin-top: 10px; }.playback-mode-option { flex: 1 1 auto; padding: 6px 8px; font-size: 10px; text-align: center; } }
 .study-loop-option { border-top: 1px solid rgba(255,255,255,.14); font-size: 10px; }
 .study-loop-option.active { color: #ffd9a0; }
 .study-speed-trigger.looping { color: var(--orange); }
