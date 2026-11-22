@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
-// 网页构建也会解析手机专用的动态模块；将 Node 入口替换成浏览器可打包的入口。
+// kuromoji 的 Node 入口依赖文件系统；构建时替换成浏览器可打包的入口。
 const offlineTokenizer = fileURLToPath(new URL('./node_modules/@faanau/kuromoji/src/kuromoji.js', import.meta.url))
 const browserDictionaryLoader = fileURLToPath(new URL('./src/lib/AndroidDictionaryLoader.cjs', import.meta.url))
 

@@ -1,28 +1,8 @@
 # UTA · 日语歌曲学习
 
-用自己的歌曲练习日语：逐句听、看注音、慢速练习，再跟着原唱连续唱。支持安卓应用与电脑网页。
+用自己的歌曲练习日语：逐句听、看注音、慢速练习，再跟着原唱连续唱。本仓库只维护网页版（Vite + React 前端 + 本机 FastAPI 服务），不再提供安卓或 Windows 客户端。
 
-[安卓下载与使用](#安卓端下载与安装) · [网页安装与使用](#网页端安装与使用) · [开发交接](WEB_APP_DEVELOPMENT_HANDOFF.md)
-
-## 安卓端下载与安装
-
-### 1. 下载 APK
-
-**[前往 Releases 下载安卓 APK](https://github.com/meilawiet/Japanese-song-learning-website/releases)**
-
-打开版本页面，展开 **Assets（附件）**，下载以 **.apk** 结尾的安装包。
-
-> 安卓用户选择 APK 安装包。Source code 是项目源码，用于网页运行或开发。
-
-### 2. 安装到手机
-
-1. 在手机上打开下载好的 APK 文件。
-2. 如果系统提示需要授权，为用于打开 APK 的浏览器或文件管理器开启“允许安装此来源的应用”。
-3. 按系统提示安装，完成后打开 **UTA**。
-
-支持 Android 7.0 及以上；目前已在 Android 13 手机测试。正常安装和使用无需开启 USB 调试，无需电脑。
-
-安卓最新版本和更新内容请查看 Releases 发布页。
+[网页安装与使用](#网页端安装与使用) · [开发交接](WEB_APP_DEVELOPMENT_HANDOFF.md)
 
 ## 第一次使用
 
@@ -117,19 +97,13 @@ API Key 默认仅用于本次应用会话；选择“在这部手机上记住 AP
 
 只接受 0 或正整数。应用打开并可见时按周期检查本机变更并上传；关闭或进入后台期间暂停，重新打开后补做已到期检查。云端恢复需手动确认。
 
-目前没有账号登录，也未开放网页与安卓的跨平台数据互通。
-
-### 关于：检测更新
-
-每次启动会自动检查本仓库发布的新版本，也可进入 **关于 → 检测更新** 手动检查。发现新版后，可选择“暂不更新”或“下载更新”；下载后按手机提示安装。
-
-如果提示暂无可用更新，说明当前没有可供更新的正式安装包。
+目前没有账号登录，学习数据保存在当前浏览器。
 
 ## 常见问题
 
 **断网可以使用吗？**
 
-已导入的歌曲、已保存的封面、离线注音和学习进度可继续使用。歌词/封面搜索、AI、云备份和更新检查需要网络。
+已导入的歌曲、已保存的封面、离线注音和学习进度可继续使用。歌词/封面搜索、AI 和云备份需要网络。
 
 **为什么搜不到歌词或封面？**
 
@@ -139,17 +113,13 @@ API Key 默认仅用于本次应用会话；选择“在这部手机上记住 AP
 
 目前不支持 NCM 等加密音频文件，请准备可正常播放的标准音频文件。
 
-**卸载或清除应用数据会怎样？**
+**清除浏览器数据会怎样？**
 
-会丢失保存在应用内的歌曲和学习资料，请先完成云备份。更新通常可覆盖安装；若提示签名不一致，请先保留备份，不要直接卸载后重试。
-
-**是否必须连接电脑？**
-
-手机文件导入和日常学习可独立完成。如果使用“从电脑网页导入”，电脑端操作另见 [电脑传歌与开发说明](docs/PROJECT_SETUP_ARCHIVE.md#从电脑网页把已有歌曲导入手机)；其中 USB 传歌需要 USB 调试。Wi-Fi 传歌建议电脑连接手机热点，查找电脑成功率更高。
+会丢失保存在浏览器里的歌曲和学习资料，请先完成备份。换浏览器、换设备或清理站点数据前，先导出备份或启用 WebDAV 云备份。
 
 ## 数据与隐私
 
-歌曲、学习进度、头像和对话默认保存在本机。自动注音在手机离线完成；AI 会向你选择的服务发送相关歌词上下文，不发送音频；封面和歌词搜索会发送搜索关键词；启用 WebDAV 备份后会将选择的数据发送到你的云服务。
+歌曲、学习进度、头像和对话默认保存在本机浏览器。自动注音由本机 FastAPI 服务完成；AI 会向你选择的服务发送相关歌词上下文，不发送音频；封面和歌词搜索会发送搜索关键词；启用 WebDAV 备份后会将选择的数据发送到你的云服务。
 
 请使用有权使用的音频、歌词和图片，妥善保管备份与密钥。
 
@@ -159,14 +129,14 @@ API Key 默认仅用于本次应用会话；选择“在这部手机上记住 AP
 
 ## 网页端安装与使用
 
-网页端适合在电脑浏览器中导入歌曲、练习发音与管理学习资料。安装需要 Node.js 20.19+ 或 22.12+、Python 3.10–3.13；Windows 一键安装程序可准备项目内环境。
+适合在电脑浏览器中导入歌曲、练习发音与管理学习资料。安装需要 Node.js 20.19+ 或 22.12+、Python 3.10–3.13。
 
-先从 [项目源码页面](https://github.com/meilawiet/Japanese-song-learning-website) 下载并解压完整项目，或使用 Git 克隆，然后按下方步骤安装。网页与安卓当前功能有所不同，详情见 [网页开发交接](WEB_APP_DEVELOPMENT_HANDOFF.md#3-已有功能与实际差异)。
+克隆本仓库后按下方步骤安装（Linux / macOS / Windows 命令相同，仅路径写法不同）。
 
 ### 网页端功能
 
 - 导入带时间轴的日语 LRC 与歌曲音频；保存前可预览并校对歌词、译文、时间戳和封面。
-- 根据每句时间戳播放原声，播放起点提前 0.5 秒；支持 `1× / 0.75× / 0.5× / 0.25×` 慢放。手机上点击整句歌词区域即可播放，再点暂停，暂停后再点从句首重播；掌握状态和解析按钮仍各自独立。
+- 根据每句时间戳播放原声，播放起点提前 0.5 秒；支持 `1× / 0.75× / 0.5× / 0.25×` 慢放。点击每句右侧的播放按钮播放或暂停；触摸屏上也可点击整句歌词区域播放，暂停后再点从句首重播。
 - 如果 LRC 含中文译文，会在对应日文歌词下显示；每句可切换“已掌握 / 未掌握”，歌曲库同步显示掌握进度。
 - 逐句练习模式先隐藏读音和译文，听原声、自行回忆后再揭晓；选“还要再练”的句子自动进入复习清单。
 - 用 SudachiPy 生成逐词假名读音；可手动校正，修正结果优先显示。
@@ -180,33 +150,25 @@ API Key 默认仅用于本次应用会话；选择“在这部手机上记住 AP
 - 可从“设置 → 数据管理”导出单个本地备份文件，并在另一浏览器恢复歌曲、音频、读音修正与学习进度。
 - “设置 → AI 服务”支持服务端默认配置或自定义 Chat Completions 兼容服务，并可测试连接；密钥不进入学习备份。
 - 内置日漫抒情风格主页和独立歌曲库；可按歌名或歌手检索、切换歌曲，并删除网页导入的歌曲。
-- 导入或更换封面时可在 Apple Music、网易云音乐、QQ 音乐、酷狗音乐的候选中选择，也可上传本地图片、填写图片链接或使用默认封面；网页和 Android 均可使用。
+- 导入或更换封面时可在 Apple Music、网易云音乐、QQ 音乐、酷狗音乐的候选中选择，也可上传本地图片、填写图片链接或使用默认封面。
 
 
-## 一键安装（Windows）
+## 安装与启动
 
-下载或解压完整项目后，双击项目根目录的 [安装 UTA 网站.cmd](安装%20UTA%20网站.cmd)。脚本会检查电脑里符合要求的 Node.js、Python；如果缺少，会下载便携版 Node.js 24.21.0 或项目内的 Python 3.12，创建 `server/.venv`，安装前端与后端依赖。安装结束后双击 [启动 UTA 网站.cmd](启动%20UTA%20网站.cmd)。已安装过时可以再次运行安装程序，以补齐或更新依赖；不会删除网页中保存的歌曲和学习进度。
+在项目根目录执行：
 
-脚本只向项目内的 `.tools/`、`node_modules/`、`server/.venv/` 和各缓存目录安装或下载文件，不改系统 PATH，也不要求管理员权限；如复用电脑里已经安装的 Node.js/Python，也不会向它们的全局目录安装包。请确保项目所在磁盘有足够空间，首次安装需要访问 Node.js 官网、GitHub、npm 与 Python 包索引。网络或代理阻断时，脚本会停下并显示出错步骤，可检查网络后重试；不会自动安装可选的大型日中词典。Windows 以外的系统请按下方手动步骤安装。
-
-旧版安装脚本若在下载 Node.js 后提示 `Downloaded Node.js is not usable`，更新项目文件后直接重新双击安装程序即可；已验证的下载缓存会复用，不用手工删除 `.tools/`。若仍失败，请保留安装窗口中显示的完整报错，方便定位解压位置或系统兼容问题。
-
-## 手动安装与启动
-
-在项目根目录打开 PowerShell：
-
-```powershell
+```bash
 # 1. 安装前端依赖到当前项目的 node_modules
-npm.cmd install
+npm install
 
 # 2. 创建项目内的 Python 虚拟环境
-py -3 -m venv server\.venv
+python3 -m venv server/.venv
 
 # 3. 安装后端依赖到项目内虚拟环境
-server\.venv\Scripts\python.exe -m pip install -r server\requirements.txt
+server/.venv/bin/python -m pip install -r server/requirements.txt
 
 # 4. 同时启动网页与本地标注 API
-npm.cmd run dev
+npm run dev
 ```
 
 打开：
@@ -214,26 +176,17 @@ npm.cmd run dev
 - 网页：`http://localhost:5173`
 - 本地 API：`http://127.0.0.1:8000`
 
-生产构建校验：
+生产构建与回归测试：
 
-```powershell
-npm.cmd run build
-npm.cmd run test:backup
-node --test tests/aiSettings.test.mjs
-npm.cmd run test:lyrics
-npm.cmd run test:readings
-node --test tests\startup.test.mjs
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests\setup.ps1
-server\.venv\Scripts\python.exe -m unittest discover -s server\tests
+```bash
+npm run build
+node --test tests/*.test.mjs
+server/.venv/bin/python -m unittest discover -s server/tests
 ```
 
-所有 npm 依赖放在项目的 `node_modules/`，Python 依赖放在 `server/.venv/`，不会安装到系统全局目录。使用手动步骤时，`npm.cmd` 和 `py` 需事先可用；如果它们没有安装，请使用上方的一键安装程序。
+所有 npm 依赖放在项目的 `node_modules/`，Python 依赖放在 `server/.venv/`，不会安装到系统全局目录。本地 API 不启用自动重载，修改后端 Python 代码后需重新启动；网页前端保留 Vite 的热更新。
 
-### 以后不用输入命令
-
-首次完成上述安装后，直接双击项目根目录的 [启动 UTA 网站.cmd](启动%20UTA%20网站.cmd)。它会自动识别安装程序放在项目内的 Node.js，启动本地服务并打开浏览器。不要关闭标题为 `UTA local server` 的命令窗口；关闭它即可停止网站。Windows 下本地 API 不启用自动重载，修改后端 Python 代码后请关闭窗口再重新启动；网页前端仍保留 Vite 的热更新。
-
-首次启动时显示“从 `geci` 同步 0 首歌曲”是正常的：公开仓库没有附带商业歌曲，网页会显示内置原创短句；也可进入“歌曲库”自行导入 LRC 和音频。如果浏览器打开后始终空白，先确认服务窗口里的 `[web]` 没有退出；若启动程序等待 30 秒后提示失败，请保留该窗口的完整报错。旧版本若显示 `WatchFiles detected changes in '.uv-cache'`，请更新项目文件并重新启动，勿把 `.uv-cache` 当作歌词文件处理。
+首次启动时显示“从 `geci` 同步 0 首歌曲”是正常的：公开仓库没有附带商业歌曲，网页会显示内置原创短句；也可进入“歌曲库”自行导入 LRC 和音频。如果浏览器打开后始终空白，先确认服务窗口里的 `[web]` 没有退出。
 
 ## 逐句练习与复习
 
@@ -282,13 +235,13 @@ LRC 中的歌名、歌手资料行不会作为歌词参与读音标注或 AI 全
 2. 把同名音频文件放进 `song/`，例如 `歌手-歌名.lrc` 对应 `歌手-歌名.mp3`。
 3. 执行：
 
-   ```powershell
-   npm.cmd run lyrics:sync
+   ```bash
+   npm run lyrics:sync
    ```
 
 脚本会生成 `src/data/songs.generated.js`。不要手工编辑这个生成文件。为避免意外公开受版权保护的歌词和音频，`geci/`、`song/` 和生成的歌曲数据默认不会提交到 Git。
 
-开发服务运行时，同步后刷新网页即可查看。`npm.cmd run dev` 和 `npm.cmd run build` 也会先执行同步。生产环境使用的是构建时的歌曲列表，修改 `geci/` 后需重新执行 `npm.cmd run build` 并部署新的产物。
+开发服务运行时，同步后刷新网页即可查看。`npm run dev` 和 `npm run build` 也会先执行同步。生产环境使用的是构建时的歌曲列表，修改 `geci/` 后需重新执行 `npm run build` 并部署新的产物。
 
 ### LRC 编码与识别限制
 
@@ -301,7 +254,7 @@ LRC 中的歌名、歌手资料行不会作为歌词参与读音标注或 AI 全
 | 歌曲库标记 | 保存位置 | 如何删除或移除 |
 | --- | --- | --- |
 | 网页导入 · 当前浏览器 | 浏览器 IndexedDB，学习记录在 Local Storage | 点击卡片上的“删除”，移除该歌曲在当前浏览器中的歌词、音频及学习记录；不删除电脑上的原始文件 |
-| 来自项目文件夹 | `geci/` 歌词、`song/` 音频及生成的歌曲列表 | 将相应 LRC 移出 `geci/`，运行 `npm.cmd run lyrics:sync` 并刷新网页；构建部署版需重新构建并部署 |
+| 来自项目文件夹 | `geci/` 歌词、`song/` 音频及生成的歌曲列表 | 将相应 LRC 移出 `geci/`，运行 `npm run lyrics:sync` 并刷新网页；构建部署版需重新构建并部署 |
 | 内置原创示例 | `src/data/demoSongs.js` | 随项目提供，不提供网页删除入口；开发者可修改示例配置 |
 
 网页不会删除服务器或项目文件夹中的文件。只移出 LRC 会移除歌曲列表项，**不会删除 `song/` 中的音频**；如不希望它继续被打包，请自行将对应音频移出 `song/`，并在部署时移除旧产物中的音频文件。
@@ -309,7 +262,7 @@ LRC 中的歌名、歌手资料行不会作为歌词参与读音标注或 AI 全
 ### 已有乱码歌曲如何恢复
 
 1. 先在“设置 → 数据管理”导出学习备份，保留原始 LRC 和音频，不要清空浏览器存储。
-2. **来自项目文件夹**：更新到本次修复版本；原件为正确的 UTF-8、GBK 或 GB18030 时，无需改写文件，执行 `npm.cmd run lyrics:sync` 后刷新即可。部署版重新构建并部署。如果原件本身已经乱码，请找回正确原件或按上方方法另存 UTF-8，再同步。
+2. **来自项目文件夹**：更新到本次修复版本；原件为正确的 UTF-8、GBK 或 GB18030 时，无需改写文件，执行 `npm run lyrics:sync` 后刷新即可。部署版重新构建并部署。如果原件本身已经乱码，请找回正确原件或按上方方法另存 UTF-8，再同步。
 3. **网页导入**：已保存的歌词不会因解码器升级而被重新读取。如果这份记录已经乱码，先重新导入正确的 LRC 与音频，检查预览，确认新歌曲正常后再删除那首旧的乱码记录；新导入会有独立的学习进度，不会覆盖其他歌曲。
 4. 更新后的文件夹歌曲使用基于文件名的稳定 ID，增删其他文件不会让记录串歌。旧版按排序生成的 ID，仅在旧缓存与整首歌词逐句内容及编号完全一致、且匹配唯一时自动迁移；无法确认归属的旧记录仍保留在本地备份数据中，但不会强行应用。文件改名会视为另一首歌曲，建议保持原文件名。
 5. 注音缓存和手动读音修正按句子编号、原文及词素内容核对，不再只比较句数。内容或编号变化的行不再沿用旧修正和掌握状态；仍能核对一致的行保留。歌曲正文改变后，其旧 AI 复核及整句解析失效，可重新生成；仅修改时间戳不会清除读音修正。无法确认的乱码版本记录可能需要重新校对，但不会清空其他歌曲的数据。
@@ -324,8 +277,8 @@ LRC 中的歌名、歌手资料行不会作为歌词参与读音标注或 AI 全
 2. 放到 `server/data/tomoshi-dict-open.db.zst`。
 3. 在 `server/` 目录执行：
 
-   ```powershell
-   @'
+   ```bash
+   .venv/bin/python - <<'PY'
    from pathlib import Path
    import zstandard as zstd
 
@@ -333,7 +286,7 @@ LRC 中的歌名、歌手资料行不会作为歌词参与读音标注或 AI 全
    target = Path('data/tomoshi-dict-open.db')
    with source.open('rb') as reader, target.open('xb') as writer:
        zstd.ZstdDecompressor().copy_stream(reader, writer)
-   '@ | .\.venv\Scripts\python.exe -
+   PY
    ```
 
 首次查询会使用该本地 SQLite 数据库；不会把歌词或查词内容发送给词典服务。公开部署、修改或重新分发词典数据时，请遵守 [THIRD_PARTY_DATA_NOTICES.md](THIRD_PARTY_DATA_NOTICES.md) 中的署名与许可要求。
@@ -372,8 +325,8 @@ LRC 中的歌名、歌手资料行不会作为歌词参与读音标注或 AI 全
 
 在 `server/` 下复制 `.env.example` 为 `.env`：
 
-```powershell
-Copy-Item server\.env.example server\.env
+```bash
+cp server/.env.example server/.env
 ```
 
 编辑 `server/.env`：
@@ -393,8 +346,8 @@ DEEPSEEK_MODEL=deepseek-flash
 | 网页导入的 LRC 与音频 | 浏览器 IndexedDB | 否 |
 | 自动注音、词典释义 | 本机 FastAPI 服务 | 否 |
 | 用户自行配置的 AI Key | 默认在标签页会话；选择记住后在浏览器 Local Storage 明文保存 | 随 AI 请求发送至网站后端，再发往配置的服务；不进入学习备份 |
-| 封面检索所需的歌名、歌手名 | 电脑网页经本机服务、Android 直接访问 Apple Music、网易云音乐、QQ 音乐、酷狗音乐 | 是，仅打开封面选择器或旧版自动补查时 |
-| 自行上传的封面 | 压缩后保存在本机歌曲资料或当前设备的封面选择中，可随学习备份迁移 | 不上传原始图片到音乐平台；主动进行电脑传歌时会携带压缩图 |
+| 封面检索所需的歌名、歌手名 | 经本机服务访问 Apple Music、网易云音乐、QQ 音乐、酷狗音乐 | 是，仅打开封面选择器或旧版自动补查时 |
+| 自行上传的封面 | 压缩后保存在本机歌曲资料或当前设备的封面选择中，可随学习备份迁移 | 不上传原始图片到音乐平台 |
 | AI 整句解析 / 复核 / 片段讲解 | 当前配置的 AI 服务（确认导入或主动点击后） | 会发送所需歌词上下文与已有译文；不会发送音频 |
 
 ## 项目结构
@@ -414,9 +367,11 @@ scripts/sync-lyrics.mjs
 
 ## 版权与致谢
 
+本项目基于 [meilawiet/Japanese-song-learning-website](https://github.com/meilawiet/Japanese-song-learning-website) 衍生（MIT License，Copyright (c) 2026 meilawiet），现由 hl54hlhl2008 独立维护，仅发布网页端。原始 MIT 许可与版权声明完整保留在 [LICENSE](LICENSE)。
+
 - 日语分词与读音：SudachiPy / SudachiDict Core。
-- 安卓显示字体来自用户提供的颜真卿多宝塔碑字体，内嵌名称标注“非商业使用”；其许可不随项目代码许可改变。
-- Android 离线日语分词：[@faanau/kuromoji](https://github.com/faanau/kuromoji-js) 及其 Kuromoji 词典，Apache License 2.0。
+- 显示字体为颜真卿多宝塔碑字体，内嵌名称标注“非商业使用”；其许可不随项目代码许可改变。
+- 浏览器端日语分词：[@faanau/kuromoji](https://github.com/faanau/kuromoji-js) 及其 Kuromoji 词典，Apache License 2.0。
 - 简体中文词义：Tomoshi Dictionary Open Data Layer；相关声明见 [THIRD_PARTY_DATA_NOTICES.md](THIRD_PARTY_DATA_NOTICES.md)。
 - 内置或用户导入的歌曲歌词、音频、专辑封面归各自权利人所有。本项目不提供歌曲下载或版权授权。
 - 主页氛围插画为项目生成的原创视觉资源，位于 `src/assets/uta-twilight-station.png`。
@@ -426,8 +381,7 @@ scripts/sync-lyrics.mjs
 <details>
 <summary>开发者与合作者文档</summary>
 
-- [网页端后续开发交接](WEB_APP_DEVELOPMENT_HANDOFF.md)：安卓与网页差异、代码入口、开发顺序及验收要求。
-- [网页安装与开发说明存档](docs/PROJECT_SETUP_ARCHIVE.md)：网页启动、电脑传歌、构建和原有技术说明；部分版本信息为历史记录。
+- [网页端后续开发交接](WEB_APP_DEVELOPMENT_HANDOFF.md)：代码入口、开发顺序及验收要求。
 - [第三方数据声明](THIRD_PARTY_DATA_NOTICES.md)。
 
 </details>
