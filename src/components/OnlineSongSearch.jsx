@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Capacitor } from '@capacitor/core'
-import { Browser } from '@capacitor/browser'
+import { Capacitor, Browser } from '../lib/capacitorShim.js'
 import { ExternalLink, LoaderCircle, Search } from 'lucide-react'
 import { lyricsRecordToFile, searchSyncedLyrics } from '../lib/onlineLyrics'
 

@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Capacitor, registerPlugin } from './capacitorShim.js'
 
 const CONFIG_KEY = 'uta-ai-provider-v1'
 const SECRET_KEY = 'uta-ai-key-v1'

@@ -1,4 +1,4 @@
-import { CapacitorHttp } from '@capacitor/core'
+import { CapacitorHttp } from './capacitorShim.js'
 
 // DeepSeek 官方联网走 Anthropic Messages 的服务端搜索工具，不向普通聊天接口添加无效开关。
 export function webSearchAvailable(base) {

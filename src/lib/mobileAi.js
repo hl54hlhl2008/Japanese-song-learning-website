@@ -1,4 +1,4 @@
-import { CapacitorHttp } from '@capacitor/core'
+import { CapacitorHttp } from './capacitorShim.js'
 import { loadAiSettingsFromDevice } from './aiSettings'
 import { askWithWebSearch } from './mobileWebSearch'
 // 原静态导入：import { annotateLinesOffline } from './offlineAnnotation'

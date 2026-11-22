@@ -4,7 +4,7 @@ import { buildLyricChatContext, buildLyricChatPayload } from '../lib/lyricChat'
 import { listLyricChats, saveLyricChat, deleteLyricChat } from '../lib/lyricChatStore'
 import { loadAiSettings,setWebSearchEnabled } from '../lib/aiSettings'
 import { webSearchAvailable } from '../lib/mobileWebSearch'
-import { Browser } from '@capacitor/browser'
+import { Browser } from '../lib/capacitorShim.js'
 import { postMobileAi } from '../lib/mobileAi'
 
 // 每次打开先选择对话；历史可跨歌曲查看，继续旧歌曲时使用其保存的歌词上下文。

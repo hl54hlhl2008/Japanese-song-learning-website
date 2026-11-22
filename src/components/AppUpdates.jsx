@@ -1,7 +1,5 @@
 import {useCallback,useEffect,useRef,useState} from 'react'
-import {CapacitorHttp} from '@capacitor/core'
-import {App} from '@capacitor/app'
-import {Browser} from '@capacitor/browser'
+import { CapacitorHttp, App, Browser } from '../lib/capacitorShim.js'
 import {Download,RefreshCw,X} from 'lucide-react'
 import {UPDATE_API,selectAppRelease} from '../lib/appUpdate'
 

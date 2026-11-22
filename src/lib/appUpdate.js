@@ -1,5 +1,6 @@
-// 只从项目官方 GitHub Release 读取版本；检测更新不上传本机资料，也不自动下载。
-export const UPDATE_REPOSITORY='meilawiet/Japanese-song-learning-website'
+// 只从本仓库（个人维护）的 GitHub Release 读取版本；检测更新不上传本机资料，也不自动下载。
+// 注：安卓端已移除，该模块仅被原生平台分支引用，网页端不会触发。
+export const UPDATE_REPOSITORY='hl54hlhl2008/Japanese-song-learning-website'
 export const UPDATE_API=`https://api.github.com/repos/${UPDATE_REPOSITORY}/releases/latest`
 export function parseAppVersion(value) {
   const match=String(value).match(/^v?(\d+(?:\.\d+){1,3})(?:-([A-Za-z0-9.-]+))?$/)

@@ -1,4 +1,4 @@
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { Capacitor, CapacitorHttp } from './capacitorShim.js'
 
 // 生产构建与后端同源托管，用相对路径 /api/...；仅开发模式回落到本机地址。
 const origin = import.meta.env.VITE_ANNOTATION_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '')

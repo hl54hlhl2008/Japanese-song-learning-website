@@ -5,23 +5,16 @@
   "type": "module",
   "scripts": {
     "lyrics:sync": "node scripts/sync-lyrics.mjs",
-    "api": "server\\.venv\\Scripts\\python.exe -m uvicorn app:app --app-dir server",
+    "api": "server/.venv/bin/python -m uvicorn app:app --app-dir server",
     "web": "vite",
     "dev": "npm run lyrics:sync && concurrently --kill-others-on-fail -n api,web \"npm run api\" \"npm run web\"",
     "build": "npm run lyrics:sync && vite build",
     "test:backup": "node --test tests/learningBackup.test.mjs",
     "test:lyrics": "node --test tests/lrcEncoding.test.mjs tests/learningIdentity.test.mjs",
     "test:readings": "node --test tests/readingDisplay.test.mjs tests/readingComponents.test.mjs",
-    "preview": "vite preview",
-    "android:build": "vite build --config vite.android.config.js",
-    "android:sync": "npm run android:build && cap sync android",
-    "android:run": "npm run android:sync && cap run android --no-sync"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "8.5.3",
-    "@capacitor/app": "8.1.2",
-    "@capacitor/browser": "8.0.1",
-    "@capacitor/core": "8.5.3",
     "@faanau/kuromoji": "^0.2.1",
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",
@@ -29,9 +22,12 @@
     "wanakana": "^5.3.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.5.3",
     "@vitejs/plugin-react": "^5.0.2",
     "concurrently": "^9.2.1",
     "vite": "^7.1.7"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hl54hlhl2008/Japanese-song-learning-website.git"
   }
 }

@@ -1,4 +1,4 @@
-import { registerPlugin } from '@capacitor/core'
+import { registerPlugin } from './capacitorShim.js'
 import { DEFAULT_SYNC_SECONDS,syncSeconds } from './webDavSchedule'
 const native=registerPlugin('UtaWebDav'),credentials=registerPlugin('UtaAiCredential')
 const KEY='uta-webdav-v1'

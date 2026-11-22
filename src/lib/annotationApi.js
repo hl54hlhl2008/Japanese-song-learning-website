@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core'
+import { Capacitor } from './capacitorShim.js'
 import { aiRequestHeaders } from './aiSettings'
 
 // 生产构建与后端同源托管，用相对路径 /api/...；仅开发模式（Vite 5173 + uvicorn 8000）回落到本机地址。

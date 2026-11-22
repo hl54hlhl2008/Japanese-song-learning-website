@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor } from '../lib/capacitorShim.js'
 import { Database, Download, Eye, EyeOff, KeyRound, Languages, UserRound, LoaderCircle, Save, Upload, X } from 'lucide-react'
 import { clearAiSettings, DEFAULT_AI_SETTINGS, loadAiSettings, loadAiSettingsFromDevice, saveAiSettings } from '../lib/aiSettings'
 import { getAiStatus, testAiConnection } from '../lib/annotationApi'

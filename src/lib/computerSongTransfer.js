@@ -1,4 +1,4 @@
-import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core'
+import { Capacitor, CapacitorHttp, registerPlugin } from './capacitorShim.js'
 import { createLearningBackup } from './learningBackup'
 
 const DESKTOP_HELPER = 'http://127.0.0.1:8765'
