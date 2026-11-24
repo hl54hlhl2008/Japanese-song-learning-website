@@ -1,0 +1,12 @@
+# Orca 工作区配置：新 worktree 通过软链复用主 checkout 里的大目录，
+# 避免每个工作区重复生成约 1GB 依赖（本机 6.7G 内存 / 953G 盘，能省则省）。
+# 只允许列已被 gitignore 的目录；dist 除外（构建产物应各自生成）。
+worktree:
+  sharedDirectories:
+    - node_modules
+    - server/.venv
+    - .tools
+    # 歌词与音频是「打开页面点一句播放」这类验收的前提数据；geci/* 与 song/* 被 gitignore，
+    # 不共享的话新工作区歌单为空，浏览器验收无法执行。
+    - geci
+    - song
